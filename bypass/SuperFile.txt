@@ -1,0 +1,1245 @@
+<#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+RPG GAME
+
+
+
+
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#>
+function RPG {
+    <#
+    |        ///             ///        |
+    |        ///  Main Menu  ///        |
+    V        ///             ///        V
+#>
+    function rpgmainmenu {
+        # mainmenu
+        Clear-Host
+        write-host "character hp = $script:chp" -ForegroundColor DarkGreen -BackgroundColor Black
+        Write-Host "99 - return to game select" -ForegroundColor Green -BackgroundColor Black
+        write-host "1 - character sheet" -ForegroundColor Yellow -BackgroundColor Black
+        write-host "2 - rpgfight" -ForegroundColor Yellow -BackgroundColor Black
+        write-host "3 - sleep" -ForegroundColor Yellow -BackgroundColor Black
+        Write-Host "4 - rpgtrain" -ForegroundColor Yellow -BackgroundColor Black
+        Write-Host "5 - check monster stats" -ForegroundColor Yellow -BackgroundColor Black
+        $menuoption = read-host "choose option"
+        switch ($menuoption) {
+            1 {
+                rpgcharactersheet
+            }
+            2 {
+                rpgfightyn
+            }
+            3 {
+                rpgsleepz
+            }
+            4 {
+                rpgtrainsub
+            }
+            5 {
+                rpgstatcompare
+            }
+            42 {
+                $answer = read-host "Cheat? y/n" 
+                if ($answer -eq "y") {
+                    $script:chp = 999
+                    $script:cstrength = 999
+                    $script:cdefense = 999
+                    $script:cint = 999
+                    $script:coins = 999
+                    write-host "-------------- CHEAT MODE ACTIVATED! --------------" -ForegroundColor Red -BackgroundColor Black
+                    Pause
+                }
+                elseif ($answer -eq "n") {
+
+                }
+                else {
+                    write-host "answer the question"
+                }
+            }
+            99 {
+                $script:rpg99 = 0
+            }
+            default {
+                write-host "???"
+            }
+        }
+    }
+
+    <#
+    ^                                   ^
+   /|\       ///             ///       /|\
+    |        ///  Main Menu  ///        |
+    |        ///             ///        |
+
+#>
+
+    <#
+
+    |        ///                   ///        |
+    |        ///  Fight Functions  ///        |
+    V        ///                   ///        V
+
+#>
+
+    function rpgfight {
+        # calculate fight
+        # random drop
+        rpgrandomdrop
+        # animation
+        rpgfightanime
+        # calculate attack damages
+        rpgcalcattack
+        # deal damage to character
+        rpgdealdamage monster $script:cdmg
+        # deal damage to monster
+        rpgdealdamage character $script:mdmg
+        # show events
+        rpgbattlesum
+        # fight again?
+        rpgfightyn
+    }
+
+    function rpgrandomdrop {
+        # chance coin drop
+        if ((Get-Random -Minimum 1 -Maximum 3) -eq 1) {
+            write-host "you found a coin"
+            $script:coins = $script:coins + 1
+            write-host "you now have $script:coins coins!"-ForegroundColor Yellow -BackgroundColor Black
+            Pause
+        }
+    }
+
+    function rpgfightanime {
+        # rpgfight animation
+        write-host " O       O   "
+        Write-Host "/|\---  /|\  "
+        Write-Host "/ \     / \  " 
+        Start-Sleep -m 500
+        write-host " O         O "
+        Write-Host "/|\---    /  "
+        Write-Host "/ \     / \  " 
+        Start-Sleep -m 500
+        write-host " O           "
+        Write-Host "/|\          "
+        Write-Host "/ \     >--o " 
+    }
+
+    function rpgbattlesum {
+        # write fight result
+        if ($script:mdmg -gt 0) {
+            # monster damage positive
+            write-host "YOU TOOK $script:mdmg DAMAGE!" -ForegroundColor DarkRed -BackgroundColor Black
+        }
+        else {
+            # monster dealt 0 or less damage
+            write-host "you blocked the damage" -ForegroundColor Blue -BackgroundColor Black
+        }
+        if ($script:chp -le 0) {
+            # character hp 0 or less (DEAD!)
+            write-host "lose!" -ForegroundColor Red -BackgroundColor Black
+            write-host $script:chp"hp" -ForegroundColor Red -BackgroundColor Black
+            $script:dead = 1
+        }
+        else {
+            if ($script:cdmg -gt 0) {
+                # character dealt damage
+                if ($script:mhp -gt 0) {
+                    # character dealt damage, no kill
+                    write-host "you dealt $script:cdmg damage" -ForegroundColor DarkCyan -BackgroundColor Black
+                    write-host "the monster survived with $script:mhp health"
+                    Pause
+                }
+                else {
+                    # monster dies, gen new monster
+                    write-host "you dealt $script:cdmg damage" -ForegroundColor DarkCyan -BackgroundColor Black
+                    write-host "monster died" -ForegroundColor Magenta -BackgroundColor Black
+                    write-host "you gained 5 coins!" -ForegroundColor Yellow -BackgroundColor Black
+                    rpggenmhp
+                    $script:kills = $script:kills + 1
+                    $script:coins = $script:coins + 5
+                    Pause
+                }
+            }
+            else {
+                # monster blocked
+                write-host "monster blocked" -ForegroundColor Blue -BackgroundColor Black
+            }
+        }
+    }
+
+    function rpgfightyn {
+        # ask to rpgfight or not
+        Clear-Host
+        write-host $script:chp -NoNewLine -ForegroundColor DarkGreen -BackgroundColor Black
+        write-host " v.s. " -NoNewLine 
+        write-host $script:mhp -ForegroundColor Red -BackgroundColor Black
+        Write-Host "fight?" -ForegroundColor Yellow -BackgroundColor Black
+        $answer = read-host "y/n" 
+        if ($answer -eq "y") {
+            rpgfight
+        }
+        elseif ($answer -eq "n") {
+
+        }
+        else {
+            write-host "answer the question"
+            rpgfightyn
+        }
+    }
+
+    function rpgcalcattack {
+        # calculate attack values from stats 
+        $script:cdmg = $script:cstrength - $script:mdefense 
+        $script:mdmg = $script:mstrength - $script:cdefense 
+    }
+
+    function rpgdealdamage {
+        # deal damage to target
+        param (
+            [Parameter(Mandatory, Position = 0)]
+            $target,
+            [Parameter(Mandatory, Position = 1)]
+            $dmg
+        )
+        if ($dmg -gt 0) {
+            switch ($target) {
+                "character" {
+                    $script:chp = $script:chp - $dmg
+                }
+                "monster" {
+                    $script:mhp = $script:mhp - $dmg
+                }
+                default {
+                    Write-Error "ERROR: target error in function rpgdealdamage!"
+                }
+            } 
+        }
+    }
+
+    <#
+    ^                                         ^
+   /|\       ///                   ///       /|\
+    |        ///  Fight Functions  ///        |
+    |        ///                   ///        |
+
+#>
+
+    <#
+
+    |        ///                ///        |
+    |        ///  Stat Windows  ///        |
+    V        ///                ///        V
+
+#>
+
+    function rpgstatcompare {
+        # use int for stat check
+        param (
+        )
+        if ($script:cint -gt 5) {   
+            Clear-Host   
+            # header
+            write-host "------------------------------------" -ForegroundColor Magenta -BackgroundColor Black
+            write-host "|   Character    v.s.    Monster" -ForegroundColor Magenta -BackgroundColor Black
+        
+            # health
+            write-host "| Health:      " -NoNewLine -ForegroundColor DarkGreen -BackgroundColor Black
+            write-host $script:chp -NoNewLine -ForegroundColor DarkGreen -BackgroundColor Black
+            write-host " v.s. " -NoNewLine -BackgroundColor Black
+            write-host $script:mhp -ForegroundColor Red -BackgroundColor Black
+
+            # strength
+            write-host "| Strength:   " -NoNewLine -ForegroundColor Red -BackgroundColor Black
+            write-host $script:cstrength -NoNewLine -ForegroundColor DarkGreen -BackgroundColor Black
+            write-host " v.s. " -NoNewLine -BackgroundColor Black
+            write-host $script:mstrength -ForegroundColor Red -BackgroundColor Black
+
+            # denfese
+            write-host "| Defense:     " -NoNewLine -ForegroundColor Blue -BackgroundColor Black
+            write-host $script:cdefense -NoNewLine -ForegroundColor DarkGreen -BackgroundColor Black
+            write-host " v.s. " -NoNewLine -BackgroundColor Black
+            write-host $script:mdefense -ForegroundColor Red -BackgroundColor Black
+        
+            # damage
+            rpgcalcattack
+            write-host "| Damage:      " -NoNewLine -ForegroundColor Yellow -BackgroundColor Black
+            write-host $script:cdmg -NoNewLine -ForegroundColor DarkGreen -BackgroundColor Black
+            write-host " v.s. " -NoNewLine -BackgroundColor Black
+            write-host $script:mdmg -ForegroundColor Red -BackgroundColor Black
+        
+            # footer
+            write-host "------------------------------------" -ForegroundColor Magenta -BackgroundColor Black
+            Pause
+        }
+        else {
+            Write-Host "BAKA! ur too baka to judge the enemy!" -ForegroundColor Red -BackgroundColor Black
+            Pause
+        }
+    }
+
+    function rpgcharactersheet {
+        Clear-Host
+        write-host "health:"$script:chp -ForegroundColor DarkGreen -BackgroundColor Black
+        write-host "strength:"$script:cstrength -ForegroundColor Red -BackgroundColor Black
+        Write-Host "defense:"$script:cdefense -ForegroundColor Blue -BackgroundColor Black
+        Write-Host "int:"$script:cint -ForegroundColor Cyan -BackgroundColor Black
+        Write-Host "coins:"$script:coins -ForegroundColor Yellow  -BackgroundColor Black
+        Write-Host "kills:"$script:kills -ForegroundColor Gray  -BackgroundColor Black
+        Pause
+    }
+
+    <#
+    ^                                      ^
+   /|\       ///                ///       /|\
+    |        ///  Stat Windows  ///        |
+    |        ///                ///        |
+
+#>
+
+    <#
+
+    |        ///                    ///        |
+    |        ///  Training section  ///        |
+    V        ///                    ///        V
+
+#>
+
+    function rpgsleepz {
+        # sleep to gain health
+        Clear-Host
+        $script:chp = $script:chp + 2
+        write-host "+2 hp gained" -ForegroundColor DarkGreen -BackgroundColor Black
+    }
+
+    function rpgtrainsub {
+        # sub menu for training stats
+        param (
+
+        )
+        $rpgtrainmenu = 1
+        while ($rpgtrainmenu -eq 1) {
+            Clear-Host
+            Write-Host "training menu" -ForegroundColor Green -BackgroundColor Black
+            Write-Host "1 - return to rpgmainmenu" -ForegroundColor Blue -BackgroundColor Black
+            Write-Host "2 - rpgtrain strength by $script:rpgtrainamount" -ForegroundColor Yellow -BackgroundColor Black
+            Write-Host "3 - rpgtrain defense by $script:rpgtrainamount" -ForegroundColor Yellow -BackgroundColor Black
+            Write-Host "4 - rpgtrain int by $script:rpgtrainamount" -ForegroundColor Yellow -BackgroundColor Black
+            Write-Host "5 - cycle amount" -ForegroundColor Blue
+            $menuoption = read-host "choose stat to rpgtrain"
+            switch ($menuoption) {
+                1 {
+                    $rpgtrainmenu = 0
+                }
+                2 {
+                    rpgtrain strength $script:rpgtrainamount
+                }
+                3 {
+                    rpgtrain defense $script:rpgtrainamount
+                }
+                4 {
+                    rpgtrain int $script:rpgtrainamount
+                }
+                5 {
+                    switch ($script:rpgtrainamount) {
+                        1 {
+                            $script:rpgtrainamount = 5
+                        }
+                        5 {
+                            $script:rpgtrainamount = 10
+                        }
+                        10 {
+                            $script:rpgtrainamount = 1
+                        }
+                        #25 {
+                        #    $script:rpgtrainamount = 100
+                        #}
+                        #100 {
+                        #    $script:rpgtrainamount = 'max'
+                        #}
+                        #'max' {
+                        #    $script:rpgtrainamount = 1
+                        #}
+                    }
+                }
+            }
+        }
+    }
+
+    function rpgtrain {
+        # train selected stat
+        param (
+            [Parameter(Mandatory, Position = 0)]
+            [string]$stat,
+            [Parameter(Position = 1)]
+            $amount
+        )
+        #Write-Host "TRAINING GROUNDS" -ForegroundColor Magenta -BackgroundColor Black
+        #$answer = read-host "train $stat by"$amount"? y/n"
+        #if ($answer -eq "y") {
+        if ($amount -le 0) {
+            $amount = 1
+        }
+        switch ($stat) {
+            "strength" {
+                $script:cstrength = $script:cstrength + $amount
+                Write-Host "strength is now:"$script:cstrength -ForegroundColor Red -BackgroundColor Black
+                Pause
+            }
+            "defense" {
+                $script:cdefense = $script:cdefense + $amount
+                Write-Host "defense is now:"$script:cdefense -ForegroundColor Blue -BackgroundColor Black
+                Pause
+            }
+            "int" {
+                $script:cint = $script:cint + $amount
+                Write-Host "int is now:"$script:cint -ForegroundColor Cyan -BackgroundColor Black
+                Pause
+            }
+            default {
+                Write-Error "incorrect training! error: |$stat||$amount|" -Category InvalidArgument
+            }
+        }
+    }
+
+    <#
+    ^                                          ^
+   /|\       ///                    ///       /|\
+    |        ///  Training section  ///        |
+    |        ///                    ///        |
+
+#>
+
+    <#
+
+    |        ///                           ///        |
+    |        ///  INIT and main game loop  ///        |
+    V        ///                           ///        V
+
+#>
+
+    function rpggameover {
+        #end game
+        $script:rpgfirsttime = 0
+        $script:rpg99 = 0
+        Write-Host "You Died!" -ForegroundColor Red -BackgroundColor Black
+        Write-Host "Game Over!" -ForegroundColor Red -BackgroundColor Black
+        Pause
+    }
+
+    function rpginit {
+        rpggenchar
+        rpggenmhp
+        $script:rpgtrainamount = 1
+    }
+
+    function rpggenchar {
+        # init character
+        $script:chp = Get-Random -Minimum 5 -Maximum 10
+        $script:cstrength = Get-Random -Minimum 1 -Maximum 10
+        $script:cdefense = Get-Random -Minimum 1 -Maximum 10
+        $script:cint = 6#Get-Random -Minimum 1 -Maximum 10
+        $script:kills = 0
+        $script:coins = 1
+        $script:dead = 0
+    }
+
+    function rpggenmhp {
+        # generate a new monster
+        $script:mhp = Get-Random -Minimum 1 -Maximum 10
+        $script:mdefense = Get-Random -Minimum 1 -Maximum 10
+        $script:mstrength = Get-Random -Minimum 1 -Maximum 10
+    }
+
+    function rpgmain {
+        if ($script:rpgfirsttime -eq 1) {
+            $script:rpg99 = 1
+        }
+        else {
+            rpginit
+            $script:rpgfirsttime = 1
+            $script:rpg99 = 1
+        }
+        while ($script:rpg99 -eq 1) {
+            if ($script:dead -eq 0) {
+                rpgmainmenu
+            }
+            elseif ($script:dead -eq 1) {
+                rpggameover
+            }
+        }
+    }
+
+    rpgmain
+
+    <#
+    ^                                                 ^
+   /|\       ///                           ///       /|\
+    |        ///  INIT and main game loop  ///        |
+    |        ///                           ///        |
+
+#>
+
+    # launch
+    #main
+}
+<#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+RPG GAME
+
+
+
+
+
+
+ZEROLIFE
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#>
+
+<#
+
+    //yes, i know there is an error in the beggining but everything still works fine
+    //ERROR FIXED -B.T.
+
+    //write at all menus to calculate latest zl points and update $data1//
+    ---> zlupdatetime <---
+
+    //reset multi calculated corectly just need to have the visuals match 
+
+    //need to balance
+
+#>
+
+<#
+    basically
+        u have fucntion {zlupdatetime} witch runs fucntion {zlafkpro} witch runs function {zltimecount}
+            function {zltimecount}
+                gets $zldate2
+                compares $zldate1 and $zldate2
+                finds the difference
+                converts it to seconds as a singe number instead of (00:00:05 ---> 5)
+                assigns the seconds to $script:Seconds
+            function {zlafkpro} then continues
+                for each $script:Seconds
+                    makes $script:afkzerofile = (all units production)*game resets
+                    then $script:zlearnafk = $script:afkzerolife * $script:Seconds
+            function {zlupdatetime} continues
+                makes zl points equal zl points * $script:zlearnedafk
+                sets $zldate1
+                ---> error on start up because function {zltimecount} doesnt yet have a $zldate1 to compare <---
+
+
+#>
+
+#$script:zerolife = 0
+#$script:zlgamereset = 1
+
+
+<#
+
+    |        ///                  ///        |
+    |        ///    MAIN MENUS    ///        |
+    V        ///                  ///        V
+
+#>
+function ZEROLIFE {
+    function zlmenu {
+        zlupdatetime
+        Clear-Host
+        zerolifeheader
+        Write-Host "----MENU----" -ForegroundColor Yellow
+        Write-Host "99 - return to game select" -ForegroundColor Green
+        Write-Host "0 - stats" -ForegroundColor Yellow
+        Write-Host "1 - click" -ForegroundColor Yellow
+        Write-Host "2 - buy upgrades" -ForegroundColor Yellow
+        Write-Host "3 - afk page" -ForegroundColor Yellow
+        Write-Host "------------" -ForegroundColor Yellow
+        $answer = Read-Host "choose option"
+        if ($answer -eq '0') {
+            zlstatsmenu
+        }
+        if ($answer -eq '1') {
+            zlclick
+        }
+        if ($answer -eq '2') {
+            zlupmenu
+        }
+        if ($answer -eq '3') {
+            #zlafkpage
+        }
+        if ($answer -eq '42') {
+            zlreset
+        }
+        if ($answer -eq '99') {
+            $script:zl99 = 0
+        }
+    }
+
+    function zlafkpage {
+        Clear-Host
+        zerolifeheader
+    
+    }
+
+    function zerolifeheader {
+        Write-Host "$script:afkzerolife zl/s X $script:Seconds seconds = +$script:zlearnedafk" -ForegroundColor Yellow
+        Write-Host "$script:zerolife zl points" -ForegroundColor Magenta
+    }
+
+    function zlstatsmenu {
+        Clear-Host
+        zlupdatetime
+        Write-Host "----STATS----" -ForegroundColor Green
+        Write-Host "unit1: $($script:zlunit1obj.amount) making $($script:zlunit1obj.production*$script:zlunit1obj.amount) zl/s" -ForegroundColor Green
+        Write-Host "unit2: $($script:zlunit2obj.amount) making $($script:zlunit2obj.production*$script:zlunit2obj.amount) zl/s" -ForegroundColor Green
+        Write-Host "unit3: $($script:zlunit3obj.amount) making $($script:zlunit3obj.production*$script:zlunit3obj.amount) zl/s" -ForegroundColor Green
+        Write-Host "total zl/s = $script:afkzerolife" -ForegroundColor Magenta
+        Write-Host "game resets: $script:zldisplaygamereset" -ForegroundColor Red
+        Write-Host "------------" -ForegroundColor Green
+        Pause
+    }
+
+    <#
+    ^                                        ^
+   /|\       ///                  ///       /|\
+    |        ///    MAIN MENUS    ///        |
+    |        ///                  ///        |
+
+#>
+
+    <#
+
+    |        ///                      ///        |
+    |        ///    BUY UNIT STORE    ///        |
+    V        ///                      ///        V
+
+#>
+
+    function zlupmenu {
+        $zlupmenu = 1
+        while ($zlupmenu -eq 1) {
+            Clear-Host
+            zlupdatetime
+            #Write-Host "$script:seconds seconds have passed"
+            #Write-Host "$script:zerolife zl points" -ForegroundColor Magenta
+            zerolifeheader
+            Write-Host "---UPMENU---" -ForegroundColor Blue
+            Write-Host "0 - main menu" -ForegroundColor Yellow
+            Write-Host "1 - unit1 x$script:zlbuyamount" -ForegroundColor Blue
+            Write-Host "2 - unit2 x$script:zlbuyamount" -ForegroundColor Blue
+            Write-Host "3 - unit3 x$script:zlbuyamount" -ForegroundColor Blue
+            Write-Host "4 - cycle amount" -ForegroundColor Blue
+            Write-Host "------------" -ForegroundColor Blue
+            $answer = Read-Host "choose option"
+            switch ($answer) {
+                0 {
+                    $zlupmenu = 0
+                }
+                1 {
+                    zlunitbuy -unit 1
+                }
+                2 {
+                    zlunitbuy -unit 2
+                }
+                3 {
+                    zlunitbuy -unit 3
+                }
+                4 {
+                    switch ($script:zlbuyamount) {
+                        1 {
+                            $script:zlbuyamount = 5
+                        }
+                        5 {
+                            $script:zlbuyamount = 10
+                        }
+                        10 {
+                            $script:zlbuyamount = 25
+                        }
+                        25 {
+                            $script:zlbuyamount = 100
+                        }
+                        100 {
+                            $script:zlbuyamount = 'MAX'
+                        }
+                        'MAX' {
+                            $script:zlbuyamount = 1
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function zlunitbuy {
+        param (
+            $unit
+        )
+        switch ($unit) {
+            1 {
+                $zlunitobj = $script:zlunit1obj
+            }
+            2 {
+                $zlunitobj = $script:zlunit2obj
+            }
+            3 {
+                $zlunitobj = $script:zlunit3obj
+            }
+        }
+        $zltobuy = $script:zlbuyamount
+        if ($script:zlbuyamount -eq 'MAX') {
+            $zlmaxamount = [System.Math]::Floor($($script:zerolife / $zlunitobj.cost))
+            $zlbuycost = $zlunitobj.cost * $zlmaxamount
+            $zltobuy = $zlmaxamount
+        }
+        else {
+            $zlbuycost = $zlunitobj.cost * $zltobuy
+        }
+        Write-Host "$($zlunitobj.name) makes $($zlunitobj.production) zl/s" -ForegroundColor Blue
+        Write-host "$($zlunitobj.name) costs $($zlunitobj.cost) zl points" -ForegroundColor Blue
+        Write-Host "buy $zltobuy $($zlunitobj.name) for $zlbuycost zl points? " -ForegroundColor Yellow -NoNewline
+        $answer = Read-Host "y/n"
+        if ($answer -eq 'y') {
+            if ($script:zerolife -ge $zlbuycost) {
+                $zlunitobj.amount = $zlunitobj.amount + $zltobuy
+                $script:zerolife = $script:zerolife - $zlbuycost
+                Write-Host "-$zlbuycost zl points" -ForegroundColor Blue
+                Write-Host "+$zltobuy $($zlunitobj.name)" -ForegroundColor Blue
+                Write-Host "you now have $($zlunitobj.amount) $($zlunitobj.name)" -ForegroundColor Blue
+                pause
+            }
+            else {
+                Write-Host "you dont have enougth zl points for $zltobuy $($zlunitobj.name)" -ForegroundColor Red
+                Write-Host "you need $($zlbuycost-$script:zerolife) more zl points!" -ForegroundColor Red
+                Pause
+            }
+        }
+    }
+
+    <#
+    ^                                            ^
+   /|\       ///                      ///       /|\
+    |        ///    BUY UNIT STORE    ///        |
+    |        ///                      ///        |
+
+#>
+
+    #Start-Job -FilePath "C:\Users\MDT\Desktop\clickerstuff\afkcount.ps1"
+
+    #Start-Job -ScriptBlock { afkcount }
+
+    <#
+
+    |        ///                    ///        |
+    |        ///    AFK COUNTING    ///        |
+    V        ///                    ///        V
+
+#>
+
+    function zlupdatetime {
+        #//write at all menus to calculate latest zl points and update $data1//
+        Clear-Host
+        zlafkpro
+        $script:zerolife = $script:zerolife + $script:zlearnedafk
+        if ($script:Seconds -gt 0) {
+            $script:zldate1 = Get-Date
+        }
+    }
+
+    function zlafkpro {
+        #$script:zldate1 = Get-Date
+        zltimecount
+        #calculate amount of zl earned
+        $script:afkzerolife = (($script:zlunit1obj.production * $script:zlunit1obj.amount) + ($script:zlunit2obj.production * $script:zlunit2obj.amount) + ($script:zlunit3obj.production * $script:zlunit3obj.amount)) * $script:zlgamereset
+        $script:zlearnedafk = $script:afkzerolife * $script:Seconds
+    }
+
+    function zltimecount {
+        #count the time passed and converts it to a integer
+        $script:zldate2 = Get-Date #get a date
+        $timepassed = New-TimeSpan -Start $script:zldate1 -End $script:zldate2 #compare it to the first date
+        #Write-Host $timepassed
+        $TimeString = $timepassed #just randomly reasing the variable
+        $TimeSpan = [System.TimeSpan]::Parse($TimeString) #stuff of google that works
+        $script:Seconds = [System.Math]::Round($TimeSpan.TotalSeconds, 0) #stuff of google that works
+        #return ($script:Seconds.ToString() ) #stuff of google that works
+        #Write-Host $script:Seconds -ForegroundColor Magenta
+    }
+
+    <#
+    ^                                          ^
+   /|\       ///                    ///       /|\
+    |        ///    AFK COUNTING    ///        |
+    |        ///                    ///        |
+
+#>
+
+    <#
+
+    |        ///             ///        |
+    |        ///    CLICK    ///        |
+    V        ///             ///        V
+
+#>
+
+    function zlclick {
+        #click adds one zl point
+        $zlclick = 1
+        while ($zlclick -eq 1) {
+            Clear-Host
+            zlupdatetime
+            zerolifeheader
+            Write-Host "click adds 1 zl point"
+            $answer = read-host "click y/n"
+            if ($answer -eq 'y') {
+                #write-host "zero file +1" -ForegroundColor Yellow
+                $script:zlclickproduction = $script:zlclickpower * $script:zlgamereset
+                $script:zerolife = $script:zerolife + $script:zlclickproduction
+                #Write-Host "$script:zerolife zl points" -ForegroundColor Magenta
+            }
+            elseif ($answer -eq 'n') {
+                $zlclick = 0
+            }
+        }
+    }
+
+    <#
+    ^                                   ^
+   /|\       ///             ///       /|\
+    |        ///    CLICK    ///        |
+    |        ///             ///        |
+
+#>
+
+    <#
+
+    |        ///             ///        |
+    |        ///    RESET    ///        |
+    V        ///             ///        V
+
+#>
+
+    function zlreset {
+        Write-Host "RESET THE GAME?" -ForegroundColor Red 
+        Write-Host "you will resive a x2 multiplier in the next game" -ForegroundColor Red
+        $answer = Read-Host "are you sure you want to reset? y/n"
+        if ($answer -eq 'y') {
+            $script:zlgamereset = $script:zlgamereset + 1
+            $script:zldisplaygamereset = $script:zlgamereset - 1
+            $script:zerolife = 0
+            zlinitunits
+            zlupdatetime
+            Write-Host "game reset for the $script:zldisplaygamereset time" -ForegroundColor Red 
+            pause
+        }
+    }
+
+    <#
+    ^                                   ^
+   /|\       ///             ///       /|\
+    |        ///    RESET    ///        |
+    |        ///             ///        |
+
+#>
+
+    <#
+
+    |        ///                      ///        |
+    |        ///  INIT and main loop  ///        |
+    V        ///                      ///        V
+
+#>
+
+    function zlinitunits {
+        $script:zlunit1obj = [PSCustomObject]@{
+            name       = 'unit1'
+            production = 1
+            cost       = 10
+            amount     = 0
+        }
+        $script:zlunit2obj = [PSCustomObject]@{
+            name       = 'unit2'
+            production = 5
+            cost       = 100
+            amount     = 0
+        }
+        $script:zlunit3obj = [PSCustomObject]@{
+            name       = 'unit3'
+            production = 10
+            cost       = 10000
+            amount     = 0
+        }
+    }
+
+    function zlmain {
+        if ($script:zlfirsttime -eq 1) {
+            $script:zl99 = 1
+        }
+        else {
+            zlinitunits
+            $script:zldate1 = Get-Date
+            $script:zlclickpower = 1
+            $script:zerolife = 0
+            $script:zlgamereset = 1
+            $script:zldisplaygamereset = 0
+            $script:zlbuyamount = 1
+            $script:zlfirsttime = 1
+            $script:zl99 = 1
+        }
+        while ($script:zl99 -eq 1) {
+            zlmenu
+        }
+    }
+
+    zlmain
+
+    <#
+    ^                                            ^
+   /|\       ///                      ///       /|\
+    |        ///  INIT and main loop  ///        |
+    |        ///                      ///        |
+
+#>
+
+}
+<#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+ZEROLIFE
+
+
+
+
+
+
+
+STORE
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#>
+
+
+function store {
+    function storemenu {
+        Clear-Host
+        Write-Host "---store---" -ForegroundColor Magenta
+        Write-Host "99 - return to game select" -ForegroundColor Green
+        Write-Host "0 - bag" 
+        Write-Host "1 - restock" -ForegroundColor Yellow
+        Write-Host "2 - eat" -ForegroundColor Yellow
+        Write-Host "3 - work" -ForegroundColor Yellow
+        Write-Host "4 - buy a apple" -ForegroundColor Green
+        Write-Host "5 - buy a banana" -ForegroundColor Green
+        Write-Host "-----------" 
+        $answer = Read-Host "choose option"
+        if ($answer -eq '0') {
+            bag
+        }
+        elseif ($answer -eq '1') {
+            restock
+        }
+        elseif ($answer -eq '2') {
+            eat
+        }
+        elseif ($answer -eq '3') {
+            work
+        }
+        elseif ($answer -eq '4') {
+            buyapple
+        }
+        elseif ($answer -eq '5') {
+            buybanana
+        }
+        elseif ($answer -eq '98') {
+            food
+        }
+        elseif ($answer -eq '99') {
+            $script:store99 = 0
+        }
+    }
+
+    function bag {
+        $food = ($script:bagapple + $script:bagbanana)
+        Clear-Host
+        Write-Host "----bag----" -ForegroundColor Magenta 
+        Write-Host "money: $script:money" -ForegroundColor Yellow
+        Write-Host "apple: $script:bagapple" -ForegroundColor Green
+        Write-Host "banana: $script:bagbanana" -ForegroundColor Green
+        Write-Host "-----------" 
+        Write-Host "total food: $food" -ForegroundColor Green
+        Write-Host "energy: $script:energy" -ForegroundColor Blue
+        pause
+    }
+
+    function buyapple {
+        $buyapple = 1
+        while ($buyapple -eq 1) {
+            if ($script:apple -gt 0) {
+                Write-Host "apple: $script:apple" -ForegroundColor Green
+                Write-Host "money: $script:money" -ForegroundColor Yellow
+                $answer = Read-Host "buy apple? y/n"
+                if ($answer -eq 'y') {
+                    if ($script:money -gt 0) {
+                        Clear-Host
+                        $script:apple = $script:apple - 1 
+                        $script:money = $script:money - 1
+                        Write-Host "added one apple" -ForegroundColor Green
+                        Write-Host "removed one money" -ForegroundColor Yellow
+                        $script:bagapple = $script:bagapple + 1
+                    }
+                    else {
+                        Write-Host "you dont have enought money!" -ForegroundColor Red
+                        pause
+                        $buyapple = 0
+                    }
+                }
+                elseif ($answer -eq 'n') {
+                    $buyapple = 0
+                }
+            }
+            else {
+                Write-Host "no apples" -ForegroundColor Red
+                pause
+                $buyapple = 0
+            }
+        }
+    }
+
+    function buybanana {
+        $buybanana = 1
+        while ($buybanana -eq 1) {
+            if ($script:banana -gt 0) {
+                Write-Host "banana: $script:banana" -ForegroundColor Green
+                Write-Host "money: $script:money" -ForegroundColor Yellow
+                $answer = Read-Host "buy banana? y/n"
+                if ($answer -eq 'y') {
+                    if ($script:money -gt 0) {
+                        Clear-Host
+                        $script:banana = $script:banana - 1 
+                        $script:money = $script:money - 1
+                        Write-Host "added one banana" -ForegroundColor Green
+                        Write-Host "removed one money" -ForegroundColor Yellow
+                        $script:bagbanana = $script:bagbanana + 1
+                    }
+                    else {
+                        Write-Host "you dont have enought money!" -ForegroundColor Red
+                        pause
+                        $buybanana = 0
+                    }
+                }
+                elseif ($answer -eq 'n') {
+                    $buybanana = 0
+                }
+            }
+            else {
+                Write-Host "no bananas" -ForegroundColor Red
+                pause
+                $buybanana = 0
+            }
+        }
+    }
+
+    function restock {
+        Clear-Host
+        $script:apple = $script:apple + 5
+        $script:banana = $script:banana + 5
+        Write-Host "Restocked!" -ForegroundColor Yellow
+        Write-Host "apple: $script:apple" -ForegroundColor Green
+        Write-Host "banana: $script:banana" -ForegroundColor Green
+        pause
+    }
+
+    function work {
+        if ($script:energy -ge 5) {
+            Clear-Host
+            $script:energy = $script:energy - 2
+            $script:money = $script:money + 5
+            Write-Host "you lost 2 energy" -ForegroundColor Blue
+            Write-Host "energy: $script:energy" -ForegroundColor Blue
+            Write-Host "earned +5 money!" -ForegroundColor Yellow
+            Write-Host "money: $script:money" -ForegroundColor Yellow
+            pause
+        }
+        else {
+            Write-Host "you need at least 5 energy to work, go eat some food" -ForegroundColor Red
+            Write-Host "energy: $script:energy" -ForegroundColor Blue
+            pause
+        }
+    }
+
+
+    function eat {
+        $food = ($script:bagapple + $script:bagbanana)
+        if ($food -gt 0) {
+            $random = get-random -minimum 1 -maximum 3
+            if ($random -eq 1) {
+                eatapple
+            }
+            elseif ($random -eq 2) {
+                eatbanana
+            }
+        }
+        else {
+            write-host "you have no food!" -ForegroundColor Red
+            pause
+        }
+    }
+
+    function eatapple {
+        if ($script:bagapple -gt 0) {
+            $script:energy = $script:energy + 1
+            $script:bagapple = $script:bagapple - 1
+            Write-Host "you ate 1 apple" -ForegroundColor Green
+            Write-Host "you gained 1 energy" -ForegroundColor Blue
+            Write-Host "energy: $script:energy" -ForegroundColor Blue
+            Write-Host "$script:bagapple apple left" -ForegroundColor Green
+            Pause
+        }
+        else {
+            Write-Host "eating banana"
+            eatbanana
+            #Write-Host "you dont have any apples to eat" -ForegroundColor Red
+            #Pause
+        }
+    }
+
+    function eatbanana {
+        if ($script:bagbanana -gt 0) {
+            $script:energy = $script:energy + 1
+            $script:bagbanana = $script:bagbanana - 1
+            Write-Host "you ate 1 banana" -ForegroundColor Green
+            Write-Host "you gained 1 energy" -ForegroundColor Blue
+            Write-Host "energy: $script:energy" -ForegroundColor Blue
+            Write-Host "$script:bagbanana banana left" -ForegroundColor Green
+            Pause
+        }
+        else {
+            Write-Host "eating apple"
+            eatapple
+            #Write-Host "you dont have any bananas to eat" -ForegroundColor Red
+            #Pause
+        }
+    }
+
+    function storemain {
+        if ($script:storefirsttime -eq 1) {
+            $script:store99 = 1
+        }
+        else {
+            #init
+            $script:money = 3
+            $script:energy = 3
+            $script:apple = 3
+            $script:bagapple = 0
+            $script:banana = 3
+            $script:bagbanana = 0
+            $script:storefirsttime = 1
+            $script:store99 = 1
+        }
+        while ($script:store99 -eq 1) {
+            storemenu
+        }
+    }
+
+    storemain
+
+}
+
+<#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+STORE
+
+
+
+
+
+
+
+SUPERMENU
+
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#>
+
+function superblock {
+    function sumenu {
+        Clear-Host
+        Write-Host "---SUPERMENU---"
+        Write-Host "99 - EXIT" -ForegroundColor Green
+        Write-Host "1 - RPG"
+        Write-Host "2 - store"
+        Write-Host "3 - ZEROLIFE"
+        $answer = Read-Host "Select Game"
+        switch ($answer) {
+            1 {
+                RPG
+            }
+            2 {
+                store
+            }
+            3 {
+                ZEROLIFE
+            }
+            99 {
+                Exit
+            }
+            default {
+                Write-Host "???"
+            }
+        }
+    }
+
+    function suinit {
+
+    }
+
+    function sumain {
+        if ($script:sufirsttime -eq 1) {
+            $script:su99 = 1
+        }
+        else {
+            suinit
+            $script:sufirsttime = 1
+            $script:su99 = 1
+        }
+        while ($script:su99 -eq 1) {
+            sumenu
+        }
+    }
+
+    sumain
+
+}
+
+superblock
